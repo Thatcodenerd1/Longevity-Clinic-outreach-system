@@ -1,0 +1,446 @@
+{
+  "name": "GTM: Longevity outreach system",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6e924761-9fe2-4701-93f0-89dbaae0650e",
+      "name": "Run full pipeline",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAMPLE DATA ONLY. Every practice, person, and address below is fictional.\n// Contacts use .example domains so nothing can ever reach a real inbox.\n// In production this step would query the NPI Registry (taxonomy codes for\n// internal medicine, family medicine, and preventive medicine in NYC zip codes)\n// and the CMS provider directory, then enrich each practice from its website\n// and public social profiles. Here we generate 75 practices with a fixed seed\n// so every run produces the exact same list.\n\nfunction mulberry32(a) {\n  return function () {\n    a |= 0; a = (a + 0x6D2B79F5) | 0;\n    let t = Math.imul(a ^ (a >>> 15), 1 | a);\n    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;\n    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;\n  };\n}\nconst rand = mulberry32(20261031);\nconst pick = (arr) => arr[Math.floor(rand() * arr.length)];\nconst shuffle = (arr) => {\n  const a = arr.slice();\n  for (let i = a.length - 1; i > 0; i--) {\n    const j = Math.floor(rand() * (i + 1));\n    const t = a[i]; a[i] = a[j]; a[j] = t;\n  }\n  return a;\n};\n\nconst places = [\n  ['Hudson', 'Manhattan'], ['Gramercy', 'Manhattan'], ['Tribeca', 'Manhattan'],\n  ['Flatiron', 'Manhattan'], ['Lenox', 'Manhattan'], ['Sutton', 'Manhattan'],\n  ['Carnegie', 'Manhattan'], ['Madison', 'Manhattan'], ['Noho', 'Manhattan'],\n  ['Murray Hill', 'Manhattan'], ['Riverside', 'Manhattan'], ['Chelsea', 'Manhattan'],\n  ['Park Slope', 'Brooklyn'], ['Williamsburg', 'Brooklyn'], ['Dumbo', 'Brooklyn'],\n  ['Fort Greene', 'Brooklyn'], ['Cobble Hill', 'Brooklyn'], ['Bay Ridge', 'Brooklyn'],\n  ['Astoria', 'Queens'], ['Forest Hills', 'Queens'], ['Long Island City', 'Queens'],\n  ['Bayside', 'Queens'], ['Riverdale', 'Bronx'], ['Pelham', 'Bronx'],\n  ['St. George', 'Staten Island']\n];\nconst kinds = [\n  'Longevity Clinic', 'Concierge Medicine', 'Wellness Collective', 'Healthspan Center',\n  'Vitality Medical', 'Longevity Lab', 'Integrative Health'\n];\nconst firstNames = ['Maya', 'Daniel', 'Priya', 'Elena', 'Marcus', 'Sofia', 'Jonah', 'Aisha',\n  'Ravi', 'Claire', 'Theo', 'Nadia', 'Victor', 'Leah', 'Omar', 'Hannah', 'Julian', 'Grace',\n  'Samir', 'Ingrid', 'Felix', 'Rosa', 'Andre', 'Mira'];\nconst lastNames = ['Okafor', 'Lindqvist', 'Raman', 'Castellano', 'Brennan', 'Haddad', 'Kowalski',\n  'Nakamura', 'Ferreira', 'Goldberg', 'Mensah', 'Petrov', 'Alvarez', 'Chen', 'Duarte', 'Weiss',\n  'Osei', 'Moreau', 'Kapoor', 'Sullivan', 'Abrams', 'Tanaka', 'Rossi', 'Iyer'];\nconst pmFirst = ['Jess', 'Carla', 'Tom', 'Bianca', 'Kevin', 'Alana', 'Rob', 'Tessa', 'Luis',\n  'Dana', 'Megan', 'Chris', 'Nina', 'Paul', 'Erin', 'Sam'];\nconst pmLast = ['Reyes', 'Murphy', 'Stein', 'Park', 'Walsh', 'Bauer', 'Lopez', 'Grant',\n  'Novak', 'Price', 'Hale', 'Ortiz'];\nconst services = [\n  'peptide therapy', 'longevity assessments', 'hormone optimization', 'NAD+ infusions',\n  'metabolic health coaching', 'advanced biomarker panels', 'body composition scans',\n  'sleep optimization', 'IV nutrient therapy', 'executive physicals', 'VO2 max testing',\n  'continuous glucose monitoring programs'\n];\nconst newServices = ['a GLP-1 weight program', 'VO2 max testing', 'a menopause care track',\n  'full-body MRI referrals', 'a sleep optimization program', 'peptide therapy'];\n\nconst slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');\n\nconst combos = [];\nfor (const p of places) for (const k of kinds) combos.push([p[0], p[1], k]);\nconst chosen = shuffle(combos).slice(0, 75);\n\nconst out = chosen.map((c, i) => {\n  const name = c[0] + ' ' + c[2];\n  const slug = slugify(name);\n  const founderFirst = pick(firstNames);\n  const founderLast = pick(lastNames);\n  const pmF = pick(pmFirst);\n  const pmL = pick(pmLast);\n  const providersRoll = rand();\n  const providers = providersRoll < 0.12 ? 1 : providersRoll < 0.88 ? 2 + Math.floor(rand() * 14) : 16 + Math.floor(rand() * 10);\n  const growthRoll = rand();\n  let growthType = 'none';\n  if (growthRoll < 0.18) growthType = 'new location';\n  else if (growthRoll < 0.40) growthType = 'hiring';\n  else if (growthRoll < 0.62) growthType = 'new service line';\n  const newService = pick(newServices);\n  let growthDetail = 'No recent growth signal found';\n  if (growthType === 'new location') growthDetail = 'Opened a second location in ' + pick(['Midtown', 'the Upper East Side', 'Brooklyn Heights', 'Hoboken', 'Westchester']);\n  if (growthType === 'hiring') growthDetail = 'Hiring a ' + pick(['nurse practitioner', 'health coach', 'second physician', 'patient care coordinator']);\n  if (growthType === 'new service line') growthDetail = 'Recently launched ' + newService;\n  const svc = shuffle(services).slice(0, 2 + Math.floor(rand() * 2));\n  const hasBooking = rand() < 0.62;\n  const social = rand() < 0.58;\n  const socialChannel = social ? pick(['Instagram', 'LinkedIn', 'Instagram and LinkedIn']) : 'none';\n  const founderDirect = rand() < 0.66;\n  const founderOnLinkedIn = rand() < 0.7;\n  return {\n    json: {\n      data_label: 'SAMPLE fictional data',\n      id: 'NYC-LGV-' + String(i + 1).padStart(3, '0'),\n      name: name,\n      slug: slug,\n      borough: c[1],\n      neighborhood: c[0],\n      providers: providers,\n      decision_maker: 'Dr. ' + founderFirst + ' ' + founderLast,\n      decision_maker_role: 'Founder and Medical Director',\n      founder_first: founderFirst,\n      founder_last: founderLast,\n      founder_email: founderFirst.toLowerCase() + '@' + slug + '.example',\n      founder_direct_contact: founderDirect ? 'yes' : 'no',\n      founder_on_linkedin: founderOnLinkedIn ? 'yes' : 'no',\n      clinical_champion: 'Dr. ' + founderFirst + ' ' + founderLast,\n      practice_manager: pmF + ' ' + pmL,\n      practice_manager_first: pmF,\n      contact_email: pmF.toLowerCase() + '.' + pmL.toLowerCase() + '@' + slug + '.example',\n      has_online_booking: hasBooking ? 'yes' : 'no',\n      active_on_social: social ? 'yes' : 'no',\n      social_channel: socialChannel,\n      growth_signal: growthType,\n      growth_detail: growthDetail,\n      new_service: growthType === 'new service line' ? newService : '',\n      services: svc\n    }\n  };\n});\n\nreturn out;\n"
+      },
+      "id": "9bf36f57-6393-4e2e-8029-c6dc540cdb26",
+      "name": "Source clinics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAMPLE DATA ONLY. Scores 0 to 100 for each fictional practice.\n//\n// Why these weights:\n// Decision access (25): at a small longevity practice the founder-physician is\n//   the buyer. If we can reach them directly (a published email or an active\n//   LinkedIn profile) the path to a yes is short. 15 points for a direct\n//   contact, 10 for being on LinkedIn.\n// Digital maturity (25): online booking and an active social presence show the\n//   practice already spends money and time on patient experience. Those are the\n//   practices that see patient education as part of the product. 13 for\n//   booking, 12 for social.\n// Growth (20): practices that are opening a location, hiring, or launching a\n//   service are buying new tools right now and feel the pain of explaining new\n//   things to patients. A new location scores highest because it doubles the\n//   volume of patient conversations.\n// Product fit (20): services like peptide therapy, hormone optimization, and\n//   longevity assessments come with protocols patients must follow at home, so\n//   take-home education matters most there. 8 points per high-fit service, 3\n//   per other service, capped at 20.\n// Size fit (10): 2 to 15 providers is the sweet spot. Solo practices rarely buy\n//   software, and practices over 15 usually have a marketing team and a longer\n//   procurement process.\n//\n// Tiers: A is 80 and up, B is 60 to 79, C is below 60.\n\nconst HIGH_FIT = ['peptide therapy', 'longevity assessments', 'hormone optimization',\n  'NAD+ infusions', 'metabolic health coaching', 'advanced biomarker panels',\n  'continuous glucose monitoring programs'];\n\nreturn $input.all().map((item) => {\n  const c = item.json;\n  const decision = (c.founder_direct_contact === 'yes' ? 15 : 0) + (c.founder_on_linkedin === 'yes' ? 10 : 0);\n  const digital = (c.has_online_booking === 'yes' ? 13 : 0) + (c.active_on_social === 'yes' ? 12 : 0);\n  const growthMap = { 'new location': 20, 'new service line': 16, 'hiring': 14, 'none': 0 };\n  const growth = growthMap[c.growth_signal] || 0;\n  let fit = 0;\n  for (const s of c.services) fit += HIGH_FIT.includes(s) ? 8 : 3;\n  fit = Math.min(20, fit);\n  let size = 2;\n  if (c.providers >= 2 && c.providers <= 15) size = 10;\n  else if (c.providers === 1 || c.providers <= 20) size = 5;\n  const score = decision + digital + growth + fit + size;\n  const tier = score >= 80 ? 'A' : score >= 60 ? 'B' : 'C';\n  const signals = [];\n  if (c.has_online_booking === 'yes') signals.push('online booking');\n  if (c.active_on_social === 'yes') signals.push('active on ' + c.social_channel);\n  if (c.growth_signal !== 'none') signals.push(c.growth_detail.toLowerCase());\n  signals.push('offers ' + c.services.join(', '));\n  return {\n    json: Object.assign({}, c, {\n      score: score,\n      tier: tier,\n      score_decision_access: decision,\n      score_digital_maturity: digital,\n      score_growth: growth,\n      score_product_fit: fit,\n      score_size_fit: size,\n      score_breakdown: 'decision access ' + decision + '/25; digital maturity ' + digital + '/25; growth ' + growth + '/20; product fit ' + fit + '/20; size fit ' + size + '/10',\n      key_signals: signals.join('; ')\n    })\n  };\n});\n"
+      },
+      "id": "6a277eba-86e1-438d-a177-36e596a30382",
+      "name": "Score clinics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "data_label",
+              "value": "={{ $json.data_label }}",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "c3",
+              "name": "name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "c4",
+              "name": "borough",
+              "value": "={{ $json.borough }}",
+              "type": "string"
+            },
+            {
+              "id": "c5",
+              "name": "providers",
+              "value": "={{ $json.providers }}",
+              "type": "number"
+            },
+            {
+              "id": "c6",
+              "name": "decision_maker",
+              "value": "={{ $json.decision_maker }}, {{ $json.decision_maker_role }}",
+              "type": "string"
+            },
+            {
+              "id": "c7",
+              "name": "practice_manager",
+              "value": "={{ $json.practice_manager }}",
+              "type": "string"
+            },
+            {
+              "id": "c8",
+              "name": "contact_email",
+              "value": "={{ $json.contact_email }}",
+              "type": "string"
+            },
+            {
+              "id": "c9",
+              "name": "tier",
+              "value": "={{ $json.tier }}",
+              "type": "string"
+            },
+            {
+              "id": "c10",
+              "name": "score",
+              "value": "={{ $json.score }}",
+              "type": "number"
+            },
+            {
+              "id": "c11",
+              "name": "score_breakdown",
+              "value": "={{ $json.score_breakdown }}",
+              "type": "string"
+            },
+            {
+              "id": "c12",
+              "name": "key_signals",
+              "value": "={{ $json.key_signals }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "04b7bed7-8bbd-4df8-8b43-6a1aa38036f1",
+      "name": "Select scored columns",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "fileName": "longevity-clinics-scored.csv",
+          "headerRow": true
+        }
+      },
+      "id": "b0ceab23-2bae-46ec-b059-e1dd4693dfa6",
+      "name": "Write longevity-clinics-scored.csv",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAMPLE DATA ONLY. Builds a 6-touch, 18-day sequence for every fictional\n// practice. Nothing here is sent anywhere: every message becomes a row in\n// longevity-clinic-messages.csv. The workflow contains no email, LinkedIn, or\n// mail nodes.\n//\n// Sequence logic: give before asking. The practice manager hears from us\n// first because she routes what the physician sees. The founder gets a\n// no-ask LinkedIn connection, then a mailed one-pager, and only sees a video\n// link on day 15 after the practice has already received something useful.\n\nconst SENDER = 'Mansi';\nconst COMPANY = 'Longevity';\n\nfunction fill(tpl, v) {\n  return tpl.replace(/\\{(\\w+)\\}/g, function (m, k) { return v[k] !== undefined ? String(v[k]) : m; });\n}\n\nconst HIGH_FIT = ['peptide therapy', 'longevity assessments', 'hormone optimization',\n  'NAD+ infusions', 'metabolic health coaching', 'advanced biomarker panels',\n  'continuous glucose monitoring programs'];\n\n// What patients tend to forget after a visit, by service. Used in the mailed one-pager.\nconst FORGET = {\n  'peptide therapy': 'how to store their peptides, what time of day to inject, and which side effects are normal in the first two weeks',\n  'longevity assessments': 'what each biomarker on their report actually means and which two or three changes matter most',\n  'hormone optimization': 'when to take their dose relative to their next blood draw and which symptoms are worth a call',\n  'NAD+ infusions': 'how to prepare for the next infusion and why the first session can feel uncomfortable',\n  'metabolic health coaching': 'the specific food and movement targets they agreed to in the room',\n  'advanced biomarker panels': 'which markers were flagged, why they matter, and when they will be retested',\n  'body composition scans': 'what their numbers mean and what a realistic change looks like in 90 days',\n  'sleep optimization': 'the exact wind-down routine and supplement timing they were given',\n  'IV nutrient therapy': 'how often to come back and what to eat beforehand',\n  'executive physicals': 'which follow-up referrals they still need to book',\n  'VO2 max testing': 'their heart rate zones and how many minutes a week to spend in each one',\n  'continuous glucose monitoring programs': 'how to read a glucose spike and which meals to test first'\n};\n\n// One line for the take-home example, by service.\nconst SERVICE_LINE = {\n  'peptide therapy': 'If peptide therapy is part of your plan, your first supply and injection instructions come at your follow-up, so there is nothing to start today.',\n  'hormone optimization': 'If we talked about hormone optimization, please do not start or stop any supplements before your follow-up, because they can change your lab picture.',\n  'NAD+ infusions': 'If you are booked for NAD+ infusions, drink plenty of water the day before and eat a normal meal beforehand.',\n  'metabolic health coaching': 'Your coach will reach out within a few days to set your first food and movement targets, so you do not need to plan anything yet.',\n  'advanced biomarker panels': 'Some of your biomarker results take longer than others, so it is normal if a few show up a few days late.',\n  'continuous glucose monitoring programs': 'If you are starting a glucose monitor, wear it for the full 14 days and log your meals in the app, even the boring ones.',\n  'longevity assessments': 'Write down any questions as they come up this week. Patients who bring a short list get a lot more out of their results visit.'\n};\n\n// Short names that read naturally in a sentence like \"your peptide patients\".\nconst SHORT = {\n  'peptide therapy': 'peptide therapy',\n  'longevity assessments': 'longevity assessment',\n  'hormone optimization': 'hormone optimization',\n  'NAD+ infusions': 'NAD+ infusion',\n  'metabolic health coaching': 'metabolic health',\n  'advanced biomarker panels': 'biomarker panel',\n  'body composition scans': 'body composition',\n  'sleep optimization': 'sleep optimization',\n  'IV nutrient therapy': 'IV therapy',\n  'executive physicals': 'executive physical',\n  'VO2 max testing': 'VO2 max',\n  'continuous glucose monitoring programs': 'glucose monitoring'\n};\n\nfunction primaryService(c) {\n  if (c.new_service && HIGH_FIT.includes(c.new_service)) return c.new_service;\n  for (const s of c.services) if (HIGH_FIT.includes(s)) return s;\n  return c.services[0];\n}\n\nfunction observation(c) {\n  if (c.growth_signal === 'new location') return 'that you recently ' + c.growth_detail.charAt(0).toLowerCase() + c.growth_detail.slice(1) + ', which is a big step';\n  if (c.growth_signal === 'hiring') return 'that you are ' + c.growth_detail.charAt(0).toLowerCase() + c.growth_detail.slice(1) + ', so it sounds like the patient list is growing';\n  if (c.growth_signal === 'new service line') return 'that you just launched ' + c.new_service;\n  if (c.has_online_booking === 'yes') return 'that new patients can book online, which tells me you put real thought into how the first visit feels';\n  if (c.active_on_social === 'yes') return 'that you post regularly on ' + c.social_channel + ' about ' + primaryService(c) + ', which is more than most practices do'\n  return 'that you offer ' + c.services.join(' and ');\n}\n\nfunction linkedinHook(c) {\n  if (c.growth_signal === 'new location') return 'Congrats on the new location.';\n  if (c.growth_signal === 'hiring') return 'Saw you are growing the team, which is great to see.';\n  if (c.growth_signal === 'new service line') return 'Saw you just added ' + c.new_service + '.';\n  if (c.active_on_social === 'yes') return 'I have enjoyed your posts about ' + primaryService(c) + '.';\n  return 'I like how ' + c.name + ' approaches ' + primaryService(c) + ' and wanted to say hello.';\n}\n\nfunction closeContext(c) {\n  if (c.growth_signal === 'new location') return 'as the new location gets busier';\n  if (c.growth_signal === 'hiring') return 'once the new hire is settled in';\n  if (c.growth_signal === 'new service line') return 'as ' + c.new_service + ' picks up';\n  return 'down the road';\n}\n\nconst D1_SUBJECTS = [\n  'Quick question about your {service} patients',\n  'Who handles patient take-home material at {name}?',\n  'A question for the {name} team'\n];\n\nconst D1 = 'Hi {pm},\\n\\nI was looking at {name} and noticed {obs}. Quick question for you: who on your team owns the material patients take home after a visit? Is that you, Dr. {last}, or someone else?\\n\\nI ask because I put together a one-page example of a take-home sheet for {service} patients. It is the kind of thing that cuts down on the follow-up calls your front desk gets in the first week after a visit. There is no pitch attached and nothing to sign up for. If it sounds useful, just reply and I will send it over.\\n\\nThanks,\\n{sender}\\n{company}';\n\nconst D4 = 'Hi Dr. {last}. {hook} I work on patient education for longevity practices here in New York and would be glad to be connected. Not asking for anything, just following along.';\n\nconst D8 = 'Dr. {first} {last}\\n{name}\\n{neighborhood}, {borough}, NY\\n\\nWhat your patients forget within 48 hours of their visit\\n\\nYour patients leave {name} motivated. They paid for the time, they trust you, and they walk out planning to follow every word. Then life happens. Studies of patient recall have found that people forget somewhere between 40 and 80 percent of what they hear in a medical visit almost right away, and a good part of what they do remember is remembered wrong.\\n\\nFor a longevity practice that is a bigger problem than it sounds, because the results you promise depend on what patients do at home. With {serviceFull}, the thing patients most often lose track of is {forget}. When that slips, they either call your front desk, guess, or quietly stop. The last one is the one that shows up months later as a membership that does not renew.\\n\\nThe fix is not more time in the room. It is a short, plain-language page that goes home with the patient, written in your voice and matched to the protocol they are actually on. Practices that do this well tend to get fewer confused calls in the first week and better follow-through by the first retest.\\n\\nI sent {pm} on your team a sample of what that page can look like. It is free to keep and use however you like.\\n\\n{sender}\\n{company}\\n(This mailer is SAMPLE output and has not been printed or mailed.)';\n\nconst D11 = 'Hi {pm},\\n\\nAs promised, here is the example. I wrote it the way a patient at {name} would read it at home after their first longevity assessment, so feel free to mark it up.\\n\\nAfter your first longevity assessment\\n\\nYou did a lot of testing today, and the full picture comes together over the next week or two. Your lab results usually arrive within 7 to 10 days. Dr. {last} will walk you through them at your follow-up, so there is no need to make sense of the numbers on your own before then.\\n\\nUntil that visit, keep eating, sleeping, and exercising the way you normally do. Big changes right now make it harder to see your real baseline. {serviceLine}\\n\\nIf anything feels off, or you have a question that cannot wait, {contact}.\\n\\nThat is the whole thing. Most practices hand something like this out at checkout. If you want a version built on your own protocols and branding, I am happy to put one together at no cost.\\n\\nBest,\\n{sender}';\n\nconst D15 = 'Hi Dr. {last},\\n\\nOver the last couple of weeks I sent {pm} a take-home example for your assessment patients, and I mailed you a short note about what patients forget after a visit. I figured the next useful thing was to show you what this could look like for {name} specifically.\\n\\nSo I recorded a two minute video walking through a take-home program for your {service} patients, built around how your practice already works: https://video.longevity.example/{slug}\\n\\nIf it is not useful, no need to reply.\\n\\n{sender}\\n\\nLinkedIn message: Hi Dr. {last}, I recorded a two minute walkthrough of what take-home education could look like for your {service} patients at {name}. Here it is if you are curious: https://video.longevity.example/{slug}';\n\nconst D18 = 'Hi Dr. {last},\\n\\nI do not want to keep showing up in your inbox, so this is my last note for now. If patient education becomes a priority at {name} {close}, I would be glad to pick this back up.\\n\\nEither way, the take-home example I sent {pm} is yours to keep and use however you like.\\n\\nWishing you and the team a good rest of the year.\\n\\n{sender}';\n\nconst rows = [];\n$input.all().forEach(function (item, idx) {\n  const c = item.json;\n  const service = primaryService(c);\n  const v = {\n    pm: c.practice_manager_first,\n    name: c.name,\n    first: c.founder_first,\n    last: c.founder_last,\n    neighborhood: c.neighborhood,\n    borough: c.borough,\n    service: SHORT[service] || service,\n    serviceFull: service,\n    obs: observation(c),\n    hook: linkedinHook(c),\n    forget: FORGET[service] || 'the specific next steps they agreed to',\n    serviceLine: SERVICE_LINE[service] || ('If we talked about ' + service + ', the details will be part of your follow-up plan.'),\n    contact: c.has_online_booking === 'yes' ? 'message the care team through the same portal you used to book' : 'call the front desk and they will get your message to the clinical team',\n    close: closeContext(c),\n    slug: c.slug,\n    sender: SENDER,\n    company: COMPANY\n  };\n  const founder = c.decision_maker + ' (' + c.decision_maker_role + ')';\n  const pmLabel = c.practice_manager + ' (Practice Manager)';\n  const cohort = c.tier === 'A' ? 'Week 1 cohort, sent first' : c.tier === 'B' ? 'Week 1 cohort, sent after Tier A' : 'Week 1 cohort, sent last';\n  const touches = [\n    { day: 1, channel: 'Email', recipient: pmLabel, address: c.contact_email, subject: fill(D1_SUBJECTS[idx % 3], v), body: fill(D1, v) },\n    { day: 4, channel: 'LinkedIn connection note', recipient: founder, address: 'LinkedIn profile of ' + c.decision_maker, subject: '', body: fill(D4, v) },\n    { day: 8, channel: 'Mailed one-pager', recipient: founder, address: c.name + ', ' + c.neighborhood + ', ' + c.borough + ', NY (SAMPLE address)', subject: 'What your patients forget within 48 hours of their visit', body: fill(D8, v) },\n    { day: 11, channel: 'Email', recipient: pmLabel, address: c.contact_email, subject: 'The take-home example I mentioned', body: fill(D11, v) },\n    { day: 15, channel: 'Email and LinkedIn message', recipient: founder, address: c.founder_email, subject: fill('A two minute video for {name}', v), body: fill(D15, v) },\n    { day: 18, channel: 'Email', recipient: founder, address: c.founder_email, subject: 'Closing the loop', body: fill(D18, v) }\n  ];\n  touches.forEach(function (t, i) {\n    rows.push({\n      json: {\n        data_label: 'SAMPLE, not sent',\n        clinic_id: c.id,\n        clinic_name: c.name,\n        tier: c.tier,\n        score: c.score,\n        cohort: cohort,\n        touch: i + 1,\n        day: t.day,\n        channel: t.channel,\n        recipient: t.recipient,\n        recipient_address: t.address,\n        subject: t.subject,\n        body: t.body\n      }\n    });\n  });\n});\nreturn rows;\n"
+      },
+      "id": "63664205-3621-402d-b8a3-df49f3adbbda",
+      "name": "Build outreach",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "fileName": "longevity-clinic-messages.csv",
+          "headerRow": true
+        }
+      },
+      "id": "b746c758-969a-4105-b8f1-0f909d313cc3",
+      "name": "Write longevity-clinic-messages.csv",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        320
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c276c306-c351-4eaf-9fba-76106a626301",
+      "name": "Run reaction demo",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAMPLE DATA ONLY. Reaction demo. Regenerates the same seeded clinics and\n// scores as Path A (same seed, same code), picks four prospects, and\n// simulates one behavior for each (open, click, positive reply, silence). Nothing is sent. The output shows how the\n// system would change the score and the next step.\n//\n// Rules the system follows:\n// OPEN: a light signal of interest. +4 points, sequence continues unchanged.\n//   One open is not intent, so we do not speed anything up.\n// CLICK: the prospect clicked a link in an email. A stronger signal than an\n//   open but not a conversation. +8 points (capped at 100), the day 11\n//   take-home example email is pulled forward as the very next touch, and the\n//   account is marked warm. It is NOT flagged sales-ready; only a reply does that.\n// POSITIVE REPLY: a real signal. +20 points (capped at 100), remaining\n//   automated touches are cancelled, account is flagged sales-ready and routed\n//   to a human with the reason attached.\n// SILENCE THROUGH DAY 11: no opens and no replies on the first four touches.\n//   -6 points, the last two touches are skipped, and the account moves to a\n//   monthly nurture track with one useful idea per month and no ask.\n\nconst clinics = (function () {\n// SAMPLE DATA ONLY. Every practice, person, and address below is fictional.\n// Contacts use .example domains so nothing can ever reach a real inbox.\n// In production this step would query the NPI Registry (taxonomy codes for\n// internal medicine, family medicine, and preventive medicine in NYC zip codes)\n// and the CMS provider directory, then enrich each practice from its website\n// and public social profiles. Here we generate 75 practices with a fixed seed\n// so every run produces the exact same list.\n\nfunction mulberry32(a) {\n  return function () {\n    a |= 0; a = (a + 0x6D2B79F5) | 0;\n    let t = Math.imul(a ^ (a >>> 15), 1 | a);\n    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;\n    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;\n  };\n}\nconst rand = mulberry32(20261031);\nconst pick = (arr) => arr[Math.floor(rand() * arr.length)];\nconst shuffle = (arr) => {\n  const a = arr.slice();\n  for (let i = a.length - 1; i > 0; i--) {\n    const j = Math.floor(rand() * (i + 1));\n    const t = a[i]; a[i] = a[j]; a[j] = t;\n  }\n  return a;\n};\n\nconst places = [\n  ['Hudson', 'Manhattan'], ['Gramercy', 'Manhattan'], ['Tribeca', 'Manhattan'],\n  ['Flatiron', 'Manhattan'], ['Lenox', 'Manhattan'], ['Sutton', 'Manhattan'],\n  ['Carnegie', 'Manhattan'], ['Madison', 'Manhattan'], ['Noho', 'Manhattan'],\n  ['Murray Hill', 'Manhattan'], ['Riverside', 'Manhattan'], ['Chelsea', 'Manhattan'],\n  ['Park Slope', 'Brooklyn'], ['Williamsburg', 'Brooklyn'], ['Dumbo', 'Brooklyn'],\n  ['Fort Greene', 'Brooklyn'], ['Cobble Hill', 'Brooklyn'], ['Bay Ridge', 'Brooklyn'],\n  ['Astoria', 'Queens'], ['Forest Hills', 'Queens'], ['Long Island City', 'Queens'],\n  ['Bayside', 'Queens'], ['Riverdale', 'Bronx'], ['Pelham', 'Bronx'],\n  ['St. George', 'Staten Island']\n];\nconst kinds = [\n  'Longevity Clinic', 'Concierge Medicine', 'Wellness Collective', 'Healthspan Center',\n  'Vitality Medical', 'Longevity Lab', 'Integrative Health'\n];\nconst firstNames = ['Maya', 'Daniel', 'Priya', 'Elena', 'Marcus', 'Sofia', 'Jonah', 'Aisha',\n  'Ravi', 'Claire', 'Theo', 'Nadia', 'Victor', 'Leah', 'Omar', 'Hannah', 'Julian', 'Grace',\n  'Samir', 'Ingrid', 'Felix', 'Rosa', 'Andre', 'Mira'];\nconst lastNames = ['Okafor', 'Lindqvist', 'Raman', 'Castellano', 'Brennan', 'Haddad', 'Kowalski',\n  'Nakamura', 'Ferreira', 'Goldberg', 'Mensah', 'Petrov', 'Alvarez', 'Chen', 'Duarte', 'Weiss',\n  'Osei', 'Moreau', 'Kapoor', 'Sullivan', 'Abrams', 'Tanaka', 'Rossi', 'Iyer'];\nconst pmFirst = ['Jess', 'Carla', 'Tom', 'Bianca', 'Kevin', 'Alana', 'Rob', 'Tessa', 'Luis',\n  'Dana', 'Megan', 'Chris', 'Nina', 'Paul', 'Erin', 'Sam'];\nconst pmLast = ['Reyes', 'Murphy', 'Stein', 'Park', 'Walsh', 'Bauer', 'Lopez', 'Grant',\n  'Novak', 'Price', 'Hale', 'Ortiz'];\nconst services = [\n  'peptide therapy', 'longevity assessments', 'hormone optimization', 'NAD+ infusions',\n  'metabolic health coaching', 'advanced biomarker panels', 'body composition scans',\n  'sleep optimization', 'IV nutrient therapy', 'executive physicals', 'VO2 max testing',\n  'continuous glucose monitoring programs'\n];\nconst newServices = ['a GLP-1 weight program', 'VO2 max testing', 'a menopause care track',\n  'full-body MRI referrals', 'a sleep optimization program', 'peptide therapy'];\n\nconst slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');\n\nconst combos = [];\nfor (const p of places) for (const k of kinds) combos.push([p[0], p[1], k]);\nconst chosen = shuffle(combos).slice(0, 75);\n\nconst out = chosen.map((c, i) => {\n  const name = c[0] + ' ' + c[2];\n  const slug = slugify(name);\n  const founderFirst = pick(firstNames);\n  const founderLast = pick(lastNames);\n  const pmF = pick(pmFirst);\n  const pmL = pick(pmLast);\n  const providersRoll = rand();\n  const providers = providersRoll < 0.12 ? 1 : providersRoll < 0.88 ? 2 + Math.floor(rand() * 14) : 16 + Math.floor(rand() * 10);\n  const growthRoll = rand();\n  let growthType = 'none';\n  if (growthRoll < 0.18) growthType = 'new location';\n  else if (growthRoll < 0.40) growthType = 'hiring';\n  else if (growthRoll < 0.62) growthType = 'new service line';\n  const newService = pick(newServices);\n  let growthDetail = 'No recent growth signal found';\n  if (growthType === 'new location') growthDetail = 'Opened a second location in ' + pick(['Midtown', 'the Upper East Side', 'Brooklyn Heights', 'Hoboken', 'Westchester']);\n  if (growthType === 'hiring') growthDetail = 'Hiring a ' + pick(['nurse practitioner', 'health coach', 'second physician', 'patient care coordinator']);\n  if (growthType === 'new service line') growthDetail = 'Recently launched ' + newService;\n  const svc = shuffle(services).slice(0, 2 + Math.floor(rand() * 2));\n  const hasBooking = rand() < 0.62;\n  const social = rand() < 0.58;\n  const socialChannel = social ? pick(['Instagram', 'LinkedIn', 'Instagram and LinkedIn']) : 'none';\n  const founderDirect = rand() < 0.66;\n  const founderOnLinkedIn = rand() < 0.7;\n  return {\n    json: {\n      data_label: 'SAMPLE fictional data',\n      id: 'NYC-LGV-' + String(i + 1).padStart(3, '0'),\n      name: name,\n      slug: slug,\n      borough: c[1],\n      neighborhood: c[0],\n      providers: providers,\n      decision_maker: 'Dr. ' + founderFirst + ' ' + founderLast,\n      decision_maker_role: 'Founder and Medical Director',\n      founder_first: founderFirst,\n      founder_last: founderLast,\n      founder_email: founderFirst.toLowerCase() + '@' + slug + '.example',\n      founder_direct_contact: founderDirect ? 'yes' : 'no',\n      founder_on_linkedin: founderOnLinkedIn ? 'yes' : 'no',\n      clinical_champion: 'Dr. ' + founderFirst + ' ' + founderLast,\n      practice_manager: pmF + ' ' + pmL,\n      practice_manager_first: pmF,\n      contact_email: pmF.toLowerCase() + '.' + pmL.toLowerCase() + '@' + slug + '.example',\n      has_online_booking: hasBooking ? 'yes' : 'no',\n      active_on_social: social ? 'yes' : 'no',\n      social_channel: socialChannel,\n      growth_signal: growthType,\n      growth_detail: growthDetail,\n      new_service: growthType === 'new service line' ? newService : '',\n      services: svc\n    }\n  };\n});\n\nreturn out;\n\n})();\nconst scored = (function ($input) {\n// SAMPLE DATA ONLY. Scores 0 to 100 for each fictional practice.\n//\n// Why these weights:\n// Decision access (25): at a small longevity practice the founder-physician is\n//   the buyer. If we can reach them directly (a published email or an active\n//   LinkedIn profile) the path to a yes is short. 15 points for a direct\n//   contact, 10 for being on LinkedIn.\n// Digital maturity (25): online booking and an active social presence show the\n//   practice already spends money and time on patient experience. Those are the\n//   practices that see patient education as part of the product. 13 for\n//   booking, 12 for social.\n// Growth (20): practices that are opening a location, hiring, or launching a\n//   service are buying new tools right now and feel the pain of explaining new\n//   things to patients. A new location scores highest because it doubles the\n//   volume of patient conversations.\n// Product fit (20): services like peptide therapy, hormone optimization, and\n//   longevity assessments come with protocols patients must follow at home, so\n//   take-home education matters most there. 8 points per high-fit service, 3\n//   per other service, capped at 20.\n// Size fit (10): 2 to 15 providers is the sweet spot. Solo practices rarely buy\n//   software, and practices over 15 usually have a marketing team and a longer\n//   procurement process.\n//\n// Tiers: A is 80 and up, B is 60 to 79, C is below 60.\n\nconst HIGH_FIT = ['peptide therapy', 'longevity assessments', 'hormone optimization',\n  'NAD+ infusions', 'metabolic health coaching', 'advanced biomarker panels',\n  'continuous glucose monitoring programs'];\n\nreturn $input.all().map((item) => {\n  const c = item.json;\n  const decision = (c.founder_direct_contact === 'yes' ? 15 : 0) + (c.founder_on_linkedin === 'yes' ? 10 : 0);\n  const digital = (c.has_online_booking === 'yes' ? 13 : 0) + (c.active_on_social === 'yes' ? 12 : 0);\n  const growthMap = { 'new location': 20, 'new service line': 16, 'hiring': 14, 'none': 0 };\n  const growth = growthMap[c.growth_signal] || 0;\n  let fit = 0;\n  for (const s of c.services) fit += HIGH_FIT.includes(s) ? 8 : 3;\n  fit = Math.min(20, fit);\n  let size = 2;\n  if (c.providers >= 2 && c.providers <= 15) size = 10;\n  else if (c.providers === 1 || c.providers <= 20) size = 5;\n  const score = decision + digital + growth + fit + size;\n  const tier = score >= 80 ? 'A' : score >= 60 ? 'B' : 'C';\n  const signals = [];\n  if (c.has_online_booking === 'yes') signals.push('online booking');\n  if (c.active_on_social === 'yes') signals.push('active on ' + c.social_channel);\n  if (c.growth_signal !== 'none') signals.push(c.growth_detail.toLowerCase());\n  signals.push('offers ' + c.services.join(', '));\n  return {\n    json: Object.assign({}, c, {\n      score: score,\n      tier: tier,\n      score_decision_access: decision,\n      score_digital_maturity: digital,\n      score_growth: growth,\n      score_product_fit: fit,\n      score_size_fit: size,\n      score_breakdown: 'decision access ' + decision + '/25; digital maturity ' + digital + '/25; growth ' + growth + '/20; product fit ' + fit + '/20; size fit ' + size + '/10',\n      key_signals: signals.join('; ')\n    })\n  };\n});\n\n})({ all: function () { return clinics; } }).map(function (i) { return i.json; });\n\nconst pickTier = (t) => scored.find((c) => c.tier === t);\nconst a = pickTier('A');\nconst b = pickTier('B');\nconst cc = pickTier('C');\nconst d = scored.find((c) => c.tier === 'B' && c.id !== b.id);\n\nfunction tierOf(s) { return s >= 80 ? 'A' : s >= 60 ? 'B' : 'C'; }\n\nconst results = [];\n\nconst aAfter = Math.min(100, a.score + 4);\nresults.push({\n  data_label: 'SAMPLE simulation',\n  clinic_id: a.id, clinic_name: a.name, decision_maker: a.decision_maker,\n  practice_manager: a.practice_manager,\n  behavior: 'Opened the day 1 email (to ' + a.practice_manager + ', practice manager)',\n  score_before: a.score, tier_before: a.tier, score_after: aAfter, tier_after: tierOf(aAfter),\n  score_change: '+4',\n  sales_ready: false,\n  warm: false,\n  account_status: 'Engaged',\n  next_touch: 'Day 4 LinkedIn connection note to ' + a.decision_maker + ' (as planned)',\n  track: 'Main sequence, unchanged',\n  what_happened_next: 'Logged the open and added 4 points. One open is a weak signal, so the system keeps the planned cadence: LinkedIn connection note to ' + a.decision_maker + ' on day 4, the mailed one-pager on day 8, and the promised take-home example on day 11.',\n  reason: ''\n});\n\nconst dAfter = Math.min(100, d.score + 8);\nresults.push({\n  data_label: 'SAMPLE simulation',\n  clinic_id: d.id, clinic_name: d.name, decision_maker: d.decision_maker,\n  practice_manager: d.practice_manager,\n  behavior: 'Clicked the link to the one-page example in the day 1 email (to ' + d.practice_manager + ', practice manager)',\n  score_before: d.score, tier_before: d.tier, score_after: dAfter, tier_after: tierOf(dAfter),\n  score_change: '+8',\n  sales_ready: false,\n  warm: true,\n  account_status: 'Warm',\n  next_touch: 'Day 11 \"After your first longevity assessment\" example email to ' + d.practice_manager + ', sent early as the next touch',\n  track: 'Main sequence, accelerated',\n  what_happened_next: 'Added 8 points and marked the account warm. A click shows ' + d.practice_manager + ' wanted to see the example, so the system pulled the day 11 \"After your first longevity assessment\" email forward and sends it as the next touch instead of waiting a week. The remaining touches keep their spacing after that send. The account is not flagged sales-ready because nobody has written back yet; a reply would do that.',\n  reason: ''\n});\n\nconst bAfter = Math.min(100, b.score + 20);\nresults.push({\n  data_label: 'SAMPLE simulation',\n  clinic_id: b.id, clinic_name: b.name, decision_maker: b.decision_maker,\n  practice_manager: b.practice_manager,\n  behavior: 'Replied positively to the day 1 email: \"That would be me. Please send the example, we have been talking about this.\"',\n  score_before: b.score, tier_before: b.tier, score_after: bAfter, tier_after: tierOf(bAfter),\n  score_change: '+20',\n  sales_ready: true,\n  warm: true,\n  account_status: 'Sales-ready',\n  next_touch: 'Personal follow-up from a person within one business day (automation stopped)',\n  track: 'Routed to sales',\n  what_happened_next: 'Added 20 points, cancelled the remaining automated touches so nobody gets a templated email after a real reply, sent the take-home example right away instead of waiting for day 11, and created a sales task to follow up personally with ' + b.practice_manager + ' within one business day and offer a 20 minute call with ' + b.decision_maker + '.',\n  reason: b.practice_manager + ' confirmed they own patient education and asked for the example, which confirms both the gatekeeper and an active need. ' + b.name + ' also shows ' + b.key_signals + '.'\n});\n\nconst cAfter = Math.max(0, cc.score - 6);\nresults.push({\n  data_label: 'SAMPLE simulation',\n  clinic_id: cc.id, clinic_name: cc.name, decision_maker: cc.decision_maker,\n  practice_manager: cc.practice_manager,\n  behavior: 'Silent through day 11 (no opens, no replies, LinkedIn note not accepted)',\n  score_before: cc.score, tier_before: cc.tier, score_after: cAfter, tier_after: tierOf(cAfter),\n  score_change: '-6',\n  sales_ready: false,\n  warm: false,\n  account_status: 'Nurture',\n  next_touch: 'Month 1 nurture note (no ask)',\n  track: 'Monthly nurture',\n  what_happened_next: 'Took 6 points off, skipped the day 15 video and day 18 close because pushing harder on a silent account burns trust, and moved ' + cc.name + ' to monthly nurture. Month 1: a short note on what patients forget after a biomarker review. Month 2: a free checklist for the first week after starting a new protocol. Month 3: a one-paragraph idea for using take-home material to support membership renewals. None of these ask for a meeting. Any open or reply puts the account back in the main sequence.',\n  reason: ''\n});\n\nreturn results.map((r) => ({ json: r }));\n"
+      },
+      "id": "8b599392-0ff2-4f60-a523-571223ef9d24",
+      "name": "Simulate reactions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAMPLE DATA ONLY. Turns the four simulated reactions into a markdown report.\nconst items = $input.all().map((i) => i.json);\nconst lines = [];\nlines.push('# Longevity outreach reaction demo (SAMPLE data, nothing was sent)');\nlines.push('');\nlines.push('Every practice and person below is fictional. This file shows how the system responds when a prospect opens an email, clicks a link, replies, or stays silent. In production these events would come from email and LinkedIn activity. Here they are simulated so the logic can be shown end to end.');\nlines.push('');\nitems.forEach((r, i) => {\n  lines.push('## ' + (i + 1) + '. ' + r.clinic_name + ' (' + r.clinic_id + ')');\n  lines.push('');\n  lines.push('Decision maker: ' + r.decision_maker + '. Practice manager: ' + r.practice_manager + '.');\n  lines.push('');\n  lines.push('**Behavior:** ' + r.behavior);\n  lines.push('');\n  lines.push('**Score:** ' + r.score_before + ' (Tier ' + r.tier_before + ') to ' + r.score_after + ' (Tier ' + r.tier_after + '), a change of ' + r.score_change + ' points.');\n  lines.push('');\n  lines.push('**Account status:** ' + r.account_status + (r.warm && !r.sales_ready ? ' (warm, not sales-ready)' : ''));\n  lines.push('');\n  lines.push('**Next touch:** ' + r.next_touch);\n  lines.push('');\n  lines.push('**Track:** ' + r.track);\n  lines.push('');\n  lines.push('**What the system did next:** ' + r.what_happened_next);\n  lines.push('');\n  if (r.sales_ready) {\n    lines.push('**Flagged sales-ready because:** ' + r.reason);\n    lines.push('');\n  }\n});\nlines.push('## Scoring rules used');\nlines.push('');\nlines.push('An open adds 4 points and changes nothing else, because one open is not intent. A click adds 8 points (never above 100), marks the account warm, and sends the day 11 take-home example early as the next touch, but it does not flag the account sales-ready. A positive reply adds 20 points, stops all automation, and hands the account to a person. Silence through day 11 takes away 6 points and moves the practice to a monthly nurture track that offers one useful idea a month and never asks for a meeting.');\nconst md = lines.join('\\n');\nreturn [{ json: { file_name: 'longevity-reaction-demo.md', md_base64: Buffer.from(md, 'utf8').toString('base64'), markdown: md } }];\n"
+      },
+      "id": "653a0c1f-5a81-49b9-a286-ab32fdfe9388",
+      "name": "Build reaction report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "md_base64",
+        "options": {
+          "fileName": "longevity-reaction-demo.md",
+          "mimeType": "text/markdown"
+        }
+      },
+      "id": "83aee4a2-a53a-4997-b358-b63ae14d166c",
+      "name": "Write longevity-reaction-demo.md",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sr",
+              "leftValue": "={{ $json.sales_ready }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9e3683ac-27f9-40a1-a8bb-c61c93f6945f",
+      "name": "Keep sales-ready accounts",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        496,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "fileName": "longevity-sales-ready.csv",
+          "headerRow": true
+        }
+      },
+      "id": "da8ac544-aadf-4659-a711-03e5a9cddb7b",
+      "name": "Write longevity-sales-ready.csv",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        736
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Run full pipeline": {
+      "main": [
+        [
+          {
+            "node": "Source clinics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source clinics": {
+      "main": [
+        [
+          {
+            "node": "Score clinics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score clinics": {
+      "main": [
+        [
+          {
+            "node": "Select scored columns",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build outreach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select scored columns": {
+      "main": [
+        [
+          {
+            "node": "Write longevity-clinics-scored.csv",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build outreach": {
+      "main": [
+        [
+          {
+            "node": "Write longevity-clinic-messages.csv",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run reaction demo": {
+      "main": [
+        [
+          {
+            "node": "Simulate reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate reactions": {
+      "main": [
+        [
+          {
+            "node": "Build reaction report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Keep sales-ready accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build reaction report": {
+      "main": [
+        [
+          {
+            "node": "Write longevity-reaction-demo.md",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep sales-ready accounts": {
+      "main": [
+        [
+          {
+            "node": "Write longevity-sales-ready.csv",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "31c0fd09-db03-4a81-b06d-af5d7dba33e7",
+  "meta": {
+    "instanceId": "6d4f9799a10391dd26f5d726e9261204f1ab996598934422ff72a00523b93ba2"
+  },
+  "nodeGroups": [
+    {
+      "id": "c22d97f7-8cb5-443b-81c5-17e3594830b3",
+      "name": "Find and score clinics",
+      "nodeIds": [
+        "9bf36f57-6393-4e2e-8029-c6dc540cdb26",
+        "6a277eba-86e1-438d-a177-36e596a30382"
+      ],
+      "description": "Builds 75 fictional NYC longevity practices with signals, then scores each 0 to 100 and assigns tier A, B, or C"
+    },
+    {
+      "id": "b7b250b5-9e32-483d-8948-b6dac2a4e6ca",
+      "name": "Export scored list",
+      "nodeIds": [
+        "04b7bed7-8bbd-4df8-8b43-6a1aa38036f1",
+        "b0ceab23-2bae-46ec-b059-e1dd4693dfa6"
+      ],
+      "description": "One row per practice with tier, score, breakdown, and key signals, ready to download"
+    },
+    {
+      "id": "f38a1761-6104-4c53-add5-c07f30c9bec1",
+      "name": "Write outreach sequences",
+      "nodeIds": [
+        "63664205-3621-402d-b8a3-df49f3adbbda",
+        "b746c758-969a-4105-b8f1-0f909d313cc3"
+      ],
+      "description": "Six personalized touches over 18 days per practice, 450 rows saved to a file and never sent"
+    },
+    {
+      "id": "c06f57d4-13d0-4fe2-8835-4813539a2272",
+      "name": "Show reaction handling",
+      "nodeIds": [
+        "8b599392-0ff2-4f60-a523-571223ef9d24",
+        "653a0c1f-5a81-49b9-a286-ab32fdfe9388",
+        "83aee4a2-a53a-4997-b358-b63ae14d166c",
+        "9e3683ac-27f9-40a1-a8bb-c61c93f6945f",
+        "da8ac544-aadf-4659-a711-03e5a9cddb7b"
+      ],
+      "description": "Simulates an open, a reply, and silence, then saves the before and after report plus the sales-ready list"
+    }
+  ],
+  "id": "YlFDS99ALwXX2mD1",
+  "tags": []
+}
